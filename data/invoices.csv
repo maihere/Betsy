@@ -1,0 +1,18 @@
+invoice_id,supplier_id,po_id,amount,invoice_date,status,flag_reason
+INV-2025-001,SUP-001,PO-2025-002,7410.00,2025-05-10T09:00:00,cleared,
+INV-2025-002,SUP-002,PO-2025-001,15200.00,2025-05-03T11:30:00,flagged_mismatch,"Amount mismatch: PO total=€14450.00, Invoice amount=€15200.00"
+INV-2025-003,SUP-006,PO-2025-004,10600.00,2025-05-22T14:00:00,pending,
+INV-2025-004,SUP-003,PO-2025-005,5775.00,2025-05-26T10:15:00,cleared,
+INV-2025-005,SUP-001,PO-2025-002,7410.00,2025-05-10T09:00:00,cleared,
+INV-2025-006,SUP-001,PO-2025-002,7410.00,2025-05-13T08:45:00,flagged_duplicate,"Duplicate detected: same supplier and amount as INV-2025-005, received 3 days later"
+INV-2025-007,SUP-007,PO-2025-006,5839.00,2025-05-04T08:00:00,cleared,
+INV-2025-008,SUP-009,PO-2025-008,16872.00,2025-05-14T09:30:00,pending,
+INV-2025-009,SUP-010,PO-2025-009,8908.50,2025-05-14T10:00:00,cleared,
+INV-2025-010,SUP-011,PO-2025-010,4748.00,2025-05-17T11:00:00,cleared,
+INV-2025-011,SUP-012,PO-2025-011,4470.00,2025-05-24T08:30:00,pending,
+INV-2025-012,SUP-017,PO-2025-016,5976.00,2025-05-25T09:15:00,cleared,
+INV-2025-013,SUP-013,PO-2025-012,8200.00,2025-05-20T13:00:00,flagged_mismatch,"Amount mismatch: PO total=€7920.00, Invoice amount=€8200.00"
+INV-2025-014,SUP-008,PO-2025-007,11656.00,2025-05-05T10:00:00,held,"Order pending_approval — invoice received before PO was approved, placed on hold"
+INV-2025-015,SUP-009,PO-2025-008,16872.00,2025-05-16T08:00:00,flagged_duplicate,"Duplicate detected: same supplier and amount as INV-2025-008, received 2 days later"
+INV-2025-016,SUP-018,PO-2025-017,4707.50,2025-05-26T14:00:00,pending,
+INV-TEST-001,SUP-003,PO-2025-005,6200.00,2026-06-01T10:00:00,pending,

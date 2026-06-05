@@ -1,0 +1,21 @@
+part_id,part_name,current_stock,reorder_threshold,reorder_quantity,assembly_line,unit,data_timestamp
+PART-001,Bearing Assembly,12,20,40,Line 2,units,2026-06-05T11:20:32
+PART-002,Hydraulic Seal Ring,8,30,60,Line 1,units,2026-06-05T11:20:32
+PART-003,Drive Belt B-Section,3,10,25,Line 3,units,2026-06-05T11:20:32
+PART-004,Shaft Coupling 40mm,150,50,100,Line 1,units,2026-06-05T11:20:32
+PART-005,Pneumatic Cylinder 80mm,220,80,160,Line 2,units,2026-06-05T11:20:32
+PART-006,Roller Chain 08B,95,40,80,Line 3,units,2026-06-05T11:20:32
+PART-007,Proximity Sensor Mount,310,60,120,Line 1,units,2026-06-05T11:20:32
+PART-008,Filter Element Hydraulic,180,70,140,Line 2,units,2026-06-05T11:20:32
+PART-009,O-Ring NBR 50mm,14,25,50,Line 3,units,2026-06-05T11:20:32
+PART-010,Timing Belt HTD 5M,400,100,200,Line 1,units,2026-06-05T11:20:32
+PART-011,Grease Cartridge EP2,260,90,180,Line 2,kg,2026-06-05T11:20:32
+PART-012,Steel Cable 6mm,7,20,40,Line 3,metres,2026-06-05T11:20:32
+PART-013,Linear Guide Rail 500mm,500,150,300,Line 1,units,2026-06-05T11:20:32
+PART-014,Solenoid Valve 24V,18,15,30,Line 2,units,2026-06-05T11:20:32
+PART-015,Compressed Air Filter G1/2,330,80,160,Line 3,units,2026-06-05T11:20:32
+PART-016,Hex Socket Bolt M12x40,45,200,400,Line 1,units,2026-06-05T11:20:32
+PART-017,Viton Seal Kit 32mm,5,35,40,Line 2,units,2026-06-05T11:20:32
+PART-018,Ball Bearing 6202ZZ,600,150,300,Line 3,units,2026-06-05T11:20:32
+PART-019,Copper Gasket 22mm,11,30,60,Line 1,units,2026-06-05T11:20:32
+PART-020,Encoder Disc 100PPR,250,60,120,Line 2,units,2026-06-05T11:20:32
