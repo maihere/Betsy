@@ -80,8 +80,12 @@ with st.sidebar:
     st.divider()
     page = st.radio(
         "Navigate",
-        ["📊 Dashboard", "▶ Run Agent", "📦 Inventory",
-         "🏭 Suppliers", "🧾 Purchase Orders", "📜 Audit Log"],
+        ["📊 Dashboard",
+         "🔄 Run Procurement Check",
+         "📦 Stock Levels",
+         "🏭 Suppliers",
+         "📋 Orders & Invoices",
+         "📜 Decision History"],
         label_visibility="collapsed",
     )
     st.divider()
@@ -93,7 +97,7 @@ with st.sidebar:
 # PAGE 1 — Dashboard
 # ══════════════════════════════════════════════════════════════════════════════
 
-if page == "📊 Dashboard":
+if page == "📊 Dashboard":    # ── PAGE 1 ──
     st.title("📊 Dashboard")
     st.caption("Live snapshot of Betsy's world.")
 
@@ -123,25 +127,105 @@ if page == "📊 Dashboard":
     audit_count = db_query("SELECT COUNT(*) AS n FROM audit_log")
     n_audit     = int(audit_count["n"].iloc[0]) if not audit_count.empty else 0
 
-    # Autonomy rate: orders placed without a HITL gate / total orders placed
-    auto_df    = db_query("SELECT COUNT(*) AS total, SUM(CASE WHEN gate IS NULL THEN 1 ELSE 0 END) AS autonomous FROM purchase_orders")
-    if not auto_df.empty and int(auto_df["total"].iloc[0]) > 0:
-        total_po   = int(auto_df["total"].iloc[0])
-        auto_po    = int(auto_df["autonomous"].iloc[0])
-        auto_rate  = f"{auto_po / total_po * 100:.0f}%"
-        auto_delta = "✅ target met" if auto_po / total_po >= 0.95 else "⚠ below 95% target"
-    else:
-        auto_rate  = "—"
-        auto_delta = "No orders yet"
-
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Low stock items", low_stock, delta="G6 risk" if stale else None,
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Parts running low", low_stock, delta="Data stale — G6 risk" if stale else None,
               delta_color="inverse")
-    c2.metric("Open POs (awaiting)", n_open)
-    c3.metric("Last gate fired", last_g)
-    c4.metric("Audit log entries", n_audit)
-    c5.metric("Autonomy rate", auto_rate, delta=auto_delta,
-              delta_color="normal" if auto_rate == "—" or auto_rate >= "95%" else "inverse")
+    c2.metric("Orders awaiting delivery", n_open)
+    c3.metric("Last approval gate fired", last_g)
+    c4.metric("Decisions logged", n_audit)
+
+    # ── Pipeline strip — last cycle node states ────────────────────────────────
+    st.markdown("#### What Betsy Did Last Cycle")
+    last_run_df = db_query(
+        "SELECT run_id, MAX(timestamp) AS ts FROM audit_log GROUP BY run_id "
+        "ORDER BY ts DESC LIMIT 1"
+    )
+    if last_run_df.empty:
+        st.caption("No cycles run yet — click Run Procurement Check to start.")
+    else:
+        last_run_id = last_run_df["run_id"].iloc[0]
+        last_run_ts = str(last_run_df["ts"].iloc[0])[:16]
+        nodes_df = db_query(
+            f"SELECT node, gate, decision FROM audit_log WHERE run_id = '{last_run_id}' ORDER BY id"
+        )
+        ran   = set(nodes_df["node"].tolist()) if not nodes_df.empty else set()
+        gates = set(nodes_df["gate"].dropna().tolist()) if not nodes_df.empty else set()
+
+        def _what(node_key):
+            """Extract the short WHAT summary from the reasoning text for a node."""
+            if nodes_df.empty:
+                return ""
+            rows = nodes_df[nodes_df["node"] == node_key]["decision"].tolist()
+            if not rows:
+                return ""
+            text = rows[0]
+            if "WHAT:" in text:
+                what = text.split("WHAT:")[1]
+                what = what.split("WHY:")[0].strip().rstrip(".")
+                return what[:55] + "…" if len(what) > 55 else what
+            return text[:55]
+
+        # Each tuple: (node_key, short_label, icon, plain-language role)
+        PIPELINE = [
+            ("monitor",        "Check Stock",      "🔍", "reads inventory"),
+            ("evaluate",       "Score Suppliers",  "⚖",  "ranks suppliers"),
+            ("decide",         "Choose Supplier",  "🧠", "AI picks best option"),
+            ("order",          "Place Order",      "📋", "creates purchase order"),
+            ("track_delivery", "Track Deliveries", "🚚", "checks if orders arrived"),
+            ("verify",         "Check Invoices",   "✅", "matches invoices to orders"),
+        ]
+
+        chips = []
+        for node_key, label, icon, role in PIPELINE:
+            node_rows  = nodes_df[nodes_df["node"] == node_key] if not nodes_df.empty else None
+            has_gate   = node_rows is not None and not node_rows["gate"].dropna().empty
+            gate_name  = node_rows["gate"].dropna().iloc[0] if has_gate else None
+            what_text  = _what(node_key)
+
+            if node_key not in ran:
+                style = ("background:#3a3a4e;color:#888;padding:8px 14px;"
+                         "border-radius:20px;font-size:12px;border:1px solid #4a4a5e")
+                inner = f'<b style="opacity:0.5">{icon} {label}</b>' \
+                        f'<br><span style="font-size:10px;opacity:0.4">{role}</span>'
+            elif has_gate:
+                style = ("background:#e67e22;color:white;padding:8px 14px;"
+                         "border-radius:20px;font-size:12px;font-weight:600")
+                inner = f'<b>{icon} {label}</b> <span style="background:rgba(0,0,0,0.25);' \
+                        f'padding:1px 6px;border-radius:8px;font-size:10px">{gate_name}</span>' \
+                        f'<br><span style="font-size:10px;opacity:0.85">{what_text[:45]}</span>'
+            else:
+                style = ("background:#1e8449;color:white;padding:8px 14px;"
+                         "border-radius:20px;font-size:12px;font-weight:600")
+                inner = f'<b>{icon} {label}</b>' \
+                        f'<br><span style="font-size:10px;opacity:0.85">{what_text[:45]}</span>'
+
+            chips.append(f'<div style="{style};text-align:center;min-width:110px">{inner}</div>')
+
+        # Insert HITL gate chip after decide (position 3) if human approved/rejected
+        if "human_approval" in ran:
+            fired = list(gates - {"G6"})[0] if (gates - {"G6"}) else "Gate"
+            approved = any("approve" in str(r).lower()
+                           for r in nodes_df[nodes_df["node"] == "human_approval"]["decision"].tolist())
+            outcome  = "Approved ✓" if approved else "Rejected ✗"
+            gate_chip = (f'<div style="background:#c0392b;color:white;padding:8px 14px;'
+                         f'border-radius:20px;font-size:12px;font-weight:700;text-align:center;'
+                         f'min-width:90px"><b>⚡ {fired}</b><br>'
+                         f'<span style="font-size:10px">{outcome}</span></div>')
+            insert_at = 3 if "order" in ran else 2
+            chips.insert(insert_at, gate_chip)
+
+        arrow = '<div style="color:#555;font-size:18px;align-self:center;padding:0 2px">→</div>'
+        strip_inner = arrow.join(chips)
+        st.markdown(
+            f'<div style="display:flex;align-items:stretch;flex-wrap:wrap;gap:6px;'
+            f'padding:16px;background:#111827;border-radius:12px;'
+            f'border:1px solid #1f2937">{strip_inner}</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            f"Last run: {last_run_ts} UTC (ID: {last_run_id[:8]}…)  "
+            f"| 🟢 completed  🟠 needs approval  ⚡ approval given  ⬜ not needed this cycle"
+        )
 
     st.divider()
 
@@ -186,9 +270,9 @@ if page == "📊 Dashboard":
 # PAGE 2 — Run Agent
 # ══════════════════════════════════════════════════════════════════════════════
 
-elif page == "▶ Run Agent":
-    st.title("▶ Run Agent")
-    st.caption("Start a monitoring cycle. See each node execute. Approve or reject gates.")
+elif page == "🔄 Run Procurement Check":
+    st.title("🔄 Run Procurement Check")
+    st.caption("Start a full procurement check, or test a specific scenario.")
 
     graph = get_graph()
 
@@ -201,13 +285,13 @@ elif page == "▶ Run Agent":
     if "demo_scenario" not in st.session_state: st.session_state.demo_scenario = "real"
 
     NODE_ICON = {
-        "monitor":        "🔍 Node 1 — Monitor",
-        "evaluate":       "⚖ Node 2 — Evaluate",
-        "decide":         "🧠 Node 3 — Decide (LLM)",
-        "human_approval": "⚡ Gate — Human Approval",
-        "order":          "📋 Node 4 — Order",
-        "track_delivery": "🚚 Node 5 — Track Delivery",
-        "verify":         "✅ Node 6 — Verify",
+        "monitor":        "🔍 Step 1 — Checking stock levels",
+        "evaluate":       "⚖ Step 2 — Scoring suppliers",
+        "decide":         "🧠 Step 3 — Choosing the best supplier (AI)",
+        "human_approval": "⚡ Waiting for your decision",
+        "order":          "📋 Step 4 — Placing the purchase order",
+        "track_delivery": "🚚 Step 5 — Checking if deliveries arrived on time",
+        "verify":         "✅ Step 6 — Checking invoices match orders",
     }
 
     DEMO_STATES = {
@@ -234,12 +318,14 @@ elif page == "▶ Run Agent":
     col_btn, col_demo = st.columns([2, 3])
     with col_demo:
         demo_choice = st.selectbox(
-            "Scenario",
-            ["real — read live inventory.csv",
-             "g1 — Spend gate (PART-001, €9,880)",
-             "g3 — Price spike (PART-017, +26.7%)",
-             "g4 — Invoice mismatch (INV-TEST-001)",
-             "g5 — Duplicate invoice (INV-TEST-DUP)"],
+            "What do you want to check?",
+            [
+                "real — Full check (reads live inventory)",
+                "g1 — High-value order: needs approval over €300",
+                "g3 — Price alert: supplier price jumped more than 15%",
+                "g4 — Invoice problem: amount doesn't match the order",
+                "g5 — Duplicate invoice: same invoice submitted twice",
+            ],
             key="demo_select",
         )
         scenario = demo_choice.split(" — ")[0].strip()
@@ -247,7 +333,7 @@ elif page == "▶ Run Agent":
     with col_btn:
         st.write("")
         run_clicked = st.button(
-            "▶ Start New Run",
+            "▶ Start Check",
             type="primary",
             disabled=(st.session_state.agent_state == "running"),
             use_container_width=True,
@@ -430,8 +516,8 @@ elif page == "▶ Run Agent":
 # PAGE 3 — Inventory
 # ══════════════════════════════════════════════════════════════════════════════
 
-elif page == "📦 Inventory":
-    st.title("📦 Inventory")
+elif page == "📦 Stock Levels":
+    st.title("📦 Stock Levels")
 
     inv_df = read_csv(INV_CSV)
     if inv_df.empty:
@@ -541,8 +627,8 @@ elif page == "🏭 Suppliers":
 # PAGE 5 — Purchase Orders
 # ══════════════════════════════════════════════════════════════════════════════
 
-elif page == "🧾 Purchase Orders":
-    st.title("🧾 Purchase Orders")
+elif page == "📋 Orders & Invoices":
+    st.title("📋 Orders & Invoices")
 
     po_df = db_query(
         "SELECT id, part_id, supplier_id, quantity, unit_price, total_value, "
@@ -715,9 +801,9 @@ elif page == "🧾 Purchase Orders":
 # PAGE 6 — Audit Log
 # ══════════════════════════════════════════════════════════════════════════════
 
-elif page == "📜 Audit Log":
-    st.title("📜 Audit Log")
-    st.caption("Every WHAT/WHY/NEXT entry Betsy wrote to betsy.db during runs.")
+elif page == "📜 Decision History":
+    st.title("📜 Decision History")
+    st.caption("Every decision Betsy made — what it found, why it acted, and what happened next.")
 
     # The WHAT/WHY/NEXT text is stored in the 'decision' column
     audit_df = db_query(
