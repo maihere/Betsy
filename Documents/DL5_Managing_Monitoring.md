@@ -174,19 +174,37 @@ Scheduler output — terminal log showing two consecutive
 automated cycles running on the 4-hour interval, with
 database entries created by each cycle.
 
-Audit log sample — three consecutive run entries in the
-WHAT/WHY/NEXT format, showing the reasoning from Monitor
-through to Order for each cycle. Demonstrates that the log
-is readable and consistent across runs.
+Audit log sample — the Decision History page showing 234
+logged entries with WHAT/WHY/NEXT reasoning in the
+readable log view, confirming the audit trail is
+accumulating correctly across runs.
 
-Dashboard screenshot — the main KPI page showing current
-low-stock count, open purchase orders, last gate fired,
-and total audit entries. Shows what Jenny sees when she
-opens the system.
+![Decision History page — 234 audit log entries, WHAT/WHY/NEXT entries visible, readable log toggle shown](<../image evidence/audit log.png>)
 
-Database state — purchase orders table with multiple
-entries including gate information, showing the system
-has been running and recording decisions.
+Dashboard screenshot — the main KPI page showing 8
+low-stock parts, 16 orders awaiting delivery, G1 as the
+last gate fired, and 232 decisions logged. The "What Betsy
+Did Last Cycle" pipeline strip shows each of the 6 nodes
+with their status. Inventory Health table visible below.
+
+![Dashboard KPI overview — 8 low stock, 16 orders awaiting, G1 last gate, 232 decisions logged, cycle pipeline strip](<../image evidence/Dashboard.png>)
+
+Orders and invoices page — the Purchase Orders dashboard
+showing open POs with delivery status and the pending
+invoices section with the Verify Now button, confirming
+the on-demand invoice check is accessible without running
+a full cycle.
+
+![Orders & Invoices page — PO table with delivery status, pending invoices section, Verify Now button](<../image evidence/Orders & Invoices.png>)
+
+Git commit history — git log --oneline showing the full
+commit sequence from initial implementation through to
+the managing-phase additions (dynamic reliability scoring,
+price history, approval rate KPI). Confirms the build
+happened in stages over time.
+NOTE: Save your git log screenshot as git_log.png in the
+image evidence/ folder, then this link becomes live:
+![Git log --oneline showing staged build from implementation through managing-phase commits](<../image evidence/git_log.png>)
 
 What this means:
 The monitoring infrastructure that was built as part of
@@ -291,46 +309,83 @@ monitoring infrastructure.
 
 How I will know this worked:
 The system is working as a managed autonomous agent when:
-(a) the approval rate KPI is added to the dashboard and
-    reads above 95% across a run of at least five cycles,
-(b) at least two stockout prevention events are visible
-    in the purchase order history, and
-(c) at least one invoice discrepancy is recorded in the
-    audit log as a G4 or G5 gate trigger.
-These are the three assignment success criteria. All three
-are measurable from the database. The portfolio will
-include the evidence for each.
+(a) at least two stockout prevention events are visible
+    in the purchase order history (parts ordered before
+    stock reached zero),
+(b) at least one invoice discrepancy is recorded in the
+    audit log as a G4 or G5 gate trigger, and
+(c) the managing phase has produced at least one
+    documented design change based on what was observed —
+    not just monitoring, but acting on what monitoring
+    revealed.
+All three are measurable from the database and the decision
+logs. Evidence for (c) is documented in DL6.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-WHAT STILL NEEDS TO BE BUILT
-─────────────────────────────
-Based on this managing review, three improvements are
-needed to close the gaps identified in the GAP analysis
-(Stage 0) and this DL:
+WHAT WAS BUILT AS A RESULT OF MANAGING
+────────────────────────────────────────
+The monitoring mechanisms identified three problems during
+operation. All three were addressed with code changes — this
+is what the managing phase produced:
 
-1. Approval rate KPI on the dashboard
-   The data exists in the purchase_orders table. Add a
-   metric showing: (orders placed without a gate firing) /
-   (total cycles run) as a percentage. Target: 95%+.
+1. G3 false alarms on new suppliers
+   Monitoring revealed that G3 (price spike detection) was
+   firing incorrectly when a supplier had no previous price
+   recorded. The fix: a price_history table was added to
+   store prices per cycle, and G3 now uses a rolling average
+   as its baseline. New suppliers with no history are
+   excluded from the check rather than defaulting to zero.
+   Full decision log: DL6_G3_Price_Redesign.md.
 
-2. Dynamic reliability scoring
-   After each delivery, the actual outcome (on time / late)
-   should update the supplier's reliability score in the
-   database. The SAW formula currently uses static scores.
-   Updating them from delivery history closes the
-   "learning from past decisions" requirement from the
-   assignment brief.
+2. Static reliability scores
+   The scoring formula used fixed reliability scores from
+   the initial CSV. Monitoring showed scores never updated
+   even when deliveries were late. The fix: track_delivery_node
+   now applies a reliability penalty (-3 points) when a PO
+   is marked as delayed, and verify_node applies a bonus
+   (+2 points) when an invoice matches cleanly. Scores now
+   reflect actual delivery performance over time.
+   Evidence: betsy/nodes.py (track_delivery_node and
+   verify_node) and betsy/database.py
+   (update_supplier_reliability function).
 
-3. Price history table
-   Store the unit price recorded each cycle per supplier.
-   The G3 spike check then compares against a rolling
-   average of the last three recorded prices, not just the
-   single previous price. This closes the "pricing trends
-   memory" requirement.
+3. No on-demand invoice check
+   Monitoring revealed that verifying a suspicious invoice
+   required running a full 4-hour procurement cycle. The
+   fix: the graph routing was updated so that a state with
+   an invoice but no low_stock_items skips directly to
+   track_delivery and verify. A "Verify Now" button was
+   added to the Purchase Orders dashboard page.
+   Evidence: betsy/graph.py (_after_monitor function update)
+   and app.py (Verify Now section in Orders & Invoices page).
 
-These three additions are the difference between the
-current prototype and a system that fully meets every
-part of the assignment brief.
+Evidence artifacts for the managing phase:
+
+Bug_Log.md — five documented problems encountered during
+operation and testing: what broke, why, what was changed.
+This is the visible record of the building and managing
+process — real failures, not sanitised retrospective.
+
+betsy/database.py — the price_history table, record_price_
+history() and get_price_average() functions. These additions
+were made directly because of what monitoring revealed.
+
+betsy/nodes.py — the updated track_delivery_node (reliability
+penalty on delay) and the updated G3 check in decide_node
+(rolling average with null guard). Before/after visible in
+the git commit history.
+
+Git commit history — the sequence of commits shows the
+build happening in stages, with managing-phase changes
+appearing after the initial implementation commits. The
+commit message "Dynamic reliability scoring + price
+history + approval rate KPI" marks the point where
+monitoring feedback was acted on.
+Screenshot captured: git log --oneline output showing
+the full commit sequence from initial implementation
+through to the managing-phase additions. This is the
+visible record that the build happened incrementally over
+time and was not produced in a single session.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

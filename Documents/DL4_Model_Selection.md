@@ -130,8 +130,11 @@ readable and accurate.
 Evidence:
 Model comparison table — side-by-side results from three
 runs per model showing JSON validity, correct selection,
-and response time. Produced by the model comparison test
-script using the same input data for both models.
+and response time. Both models scored 3/3 on accuracy.
+llama3.2:3b averaged 2.6 seconds. gemma4:e4b averaged
+30.2 seconds. Identical quality, 11.6× speed difference.
+
+![Model comparison summary — llama3.2:3b (2.6s, 3/3 JSON valid, 3/3 correct) vs gemma4:e4b (30.2s, 3/3, 3/3)](<../image evidence/model chose.png>)
 
 Full system run log — the Decide node calling llama3.2:3b
 in context, with the LLM's JSON response and the plain-
@@ -227,11 +230,29 @@ Model comparison table — llama3.2:3b versus gemma4:e4b,
 three runs each, showing JSON validity, correct selection,
 and response time side by side. Produced by the model
 comparison test script with consistent results.
+Produced by: python test_model_choice.py
 
 Full system run log — the complete Betsy cycle with
 llama3.2:3b running in the Decide node, showing the LLM
 call, the JSON response, and the selected supplier in the
 terminal output.
+Produced by: python start_betsy.py --run
+
+Code — model integration:
+test_model_choice.py — the comparison script. Sends the
+same supplier selection task to both models three times
+each, parses the JSON, checks the selection, and prints
+timing and accuracy side by side.
+betsy/prompts.py — the DECIDE_PROMPT template. Defines
+the exact instruction sent to the LLM: select from a
+pre-scored list, return JSON with supplier_id and
+reasoning. The model never performs arithmetic.
+betsy/nodes.py (decide_node) — where the LLM is called
+in the production workflow. The pre-computed SAW scores
+are injected into the prompt; the model returns JSON;
+the order_value is calculated in Python after the response
+is parsed. The fallback (highest-scored supplier selected
+without LLM if JSON fails) is also here.
 
 Next LO stage: Moving to Managing
 

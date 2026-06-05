@@ -161,6 +161,17 @@ A gate test showing all six gates firing from real data in
 the inventory and supplier CSV files — each gate triggered
 by the exact condition it is designed to catch.
 
+![G1 (spend €9,880 > €300), G2 (unapproved supplier FastParts GmbH), G3 (ViennaMach +26.7% spike) — WHAT/WHY/NEXT for each](<../image evidence/test_gate(1).png>)
+
+![G4 (invoice €6,200 vs PO €5,775, diff €425), G5 (duplicate INV-2025-006 = INV-2025-001), G6 (data 8959h old) — WHAT/WHY/NEXT](<../image evidence/test_gate(2).png>)
+
+Gate reasoning log — the G5 duplicate invoice entry
+showing the exact data the gate acted on (same supplier,
+same PO, same amount), the DL2 rule applied, and the
+action taken (payment held, workflow paused).
+
+![G5 duplicate invoice — WHAT/WHY/NEXT reasoning log entry in full, no-fire case confirmed below](<../image evidence/reasoning log entry.png>)
+
 What this means:
 The six gates cover every identified risk scenario. The
 thresholds are defensible: €300 is the tail-spend boundary,
@@ -281,6 +292,15 @@ applied as a blanket rule.
 7. What this unlocks
 
 Evidence artifacts:
+Risk Analysis and the approach for agent.docx — the early
+risk analysis produced before the gate thresholds were
+fixed. This document records the Library and Field phase
+thinking: mapping procurement risks to categories, reviewing
+tail-spend and invoice fraud research, and identifying which
+scenarios required a human decision versus which could be
+handled automatically. It predates the gate implementation
+and shows the risk reasoning that the gate design formalised.
+
 Risk mapping table — every identified procurement risk
 scenario, the gate assigned to it, the threshold, and the
 HITL/HOTL classification with the reasoning for each.
@@ -289,6 +309,20 @@ Gate trigger test output — all six gates firing from real
 data, confirming that the conditions and thresholds work
 as designed. Each gate fires from the specific data scenario
 it was built to catch.
+Produced by: python test_gates.py
+
+Code — gate implementation:
+test_gates.py — runs each gate condition in isolation
+against the real CSV data and confirms each one fires (and
+does not fire when the threshold is not met).
+betsy/nodes.py — the gate checks live inside decide_node
+(G1, G3), evaluate_node (G2), monitor_node (G6), and
+verify_node (G4, G5). Each check is a Python comparison —
+no LLM involvement in the gate logic.
+betsy/graph.py — the routing functions (_after_decide,
+_after_evaluate, _after_monitor, _after_verify) that read
+the gate field from state and direct the graph to
+human_approval_node or continue.
 
 Next LO stage: Moving to Designing
 

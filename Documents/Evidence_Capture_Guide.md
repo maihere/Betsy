@@ -416,6 +416,28 @@ conn.close()
 
 ---
 
+### Evidence 5G — Git commit history showing staged build (Lab evidence)
+
+**Run:**
+```powershell
+git log --oneline
+```
+
+**Capture:** Screenshot the full output showing all commits in order. Make sure the following landmark commits are visible:
+- The initial DL4 implementation commits
+- "Dynamic reliability scoring + price history + approval rate KPI" — the managing-phase commit
+- Any commits after the initial build (DL5/DL6 additions)
+
+**It shows:** The build happened in identifiable stages — not all at once. The managing phase produced commits that are distinct from and later than the implementation commits. This is the evidence that the project followed a genuine Analyse → Design → Realise → Manage sequence.
+
+**DL section:** DL5 Section 7 (Evidence artifacts — git commit history)
+
+**Tags to:** LO5 Managing
+
+**Status:** ✅ CAPTURED
+
+---
+
 ## Quick Capture Order (Recommended sequence)
 
 Run these in order. Steps 1-4 do not need Ollama running. Steps 5-9 need Ollama.

@@ -145,6 +145,20 @@ running all three on the same task and recording the output.
 The table shows LangGraph passing all four criteria and
 AutoGen and CrewAI failing all four.
 
+![Framework criteria comparison — C1/C2/C3 pass/fail for LangGraph, AutoGen, CrewAI with "What This Means for Betsy" explanation](<../image evidence/criteria_table.png>)
+
+LangGraph gate firing — the workflow pausing at the HITL
+gate mid-run, showing interrupt() executing, the gate
+details, and the graph resuming after approval. AutoGen
+and CrewAI have no equivalent output because they cannot
+pause.
+
+![LangGraph: interrupt() fires at spend gate, graph pauses, resumes on approval, reasoning log entries visible](<../image evidence/LangGraph gate.png>)
+
+![AutoGen: runs to completion past the gate without pausing — C2 fails](<../image evidence/AutoGen.png>)
+
+![CrewAI: runs to completion past the gate without pausing — C2 fails](<../image evidence/CrewAI.png>)
+
 What this means:
 AutoGen and CrewAI are the right tools for a different type
 of problem — agents that reason through a question and return
@@ -222,10 +236,32 @@ criteria made the gap visible immediately.
 7. What this unlocks
 
 Evidence artifacts:
+Research_Document.docx — the early research into autonomous
+agent frameworks produced before the comparison test was
+designed. This document records the initial Library phase:
+reading the LangGraph, AutoGen, and CrewAI documentation,
+identifying the core capabilities of each, and forming the
+research question that the comparison test answered. It
+predates the implementation and shows the thinking that
+preceded the build.
+
 Side-by-side framework comparison table — three frameworks,
 same task, four criteria, pass/fail recorded for each. The
 output shows LangGraph passing all four and AutoGen and
 CrewAI failing all four. Three runs each, consistent results.
+Produced by: python -m agents.run_all
+
+Code — framework comparison scripts:
+agents/run_all.py — the comparison runner that executes all
+three frameworks against the same task and prints the table.
+agents/langgraph_agent.py — LangGraph implementation: C1, C2,
+C3, and C4 all pass; interrupt() fires and the graph resumes.
+agents/autogen_agent.py — AutoGen implementation: runs to
+completion without pausing at the gate; C2 and C3 fail.
+agents/crewai_agent.py — CrewAI implementation: same failure
+pattern as AutoGen; no native interrupt or per-step log.
+agents/shared_data.py — the shared test order used by all
+three frameworks so the comparison is on identical input.
 
 Next LO stage: Moving to Advising
 

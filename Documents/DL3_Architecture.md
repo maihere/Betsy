@@ -164,14 +164,33 @@ order.
 
 Evidence:
 Skeleton proof output — full terminal log showing the graph
-running from Monitor through to the G1 gate pause, with the
-WHAT/WHY/NEXT reasoning entries from each node visible.
-The log shows the SAW scores, the LLM selection, the gate
-condition triggering, and the graph resuming after approval.
+running through the 6-node sequence, the WHAT/WHY/NEXT
+reasoning entries visible, a gate firing, interrupt()
+executing, the graph resuming after approval, and the
+reasoning log saved to betsy.db.
+
+![Full graph run — Monitor fires G6 (stale data 6.8h), interrupt() pauses, resumes on approval, reasoning log entries saved to betsy.db](<../image evidence/full 6-node output .png>)
 
 Architecture diagram — six nodes connected in sequence with
 gate branches shown at the correct positions. Produced
 during the Workshop design phase.
+
+SAW scoring formula confirmed in the live dashboard — the
+Suppliers page showing all approved suppliers with their
+reliability, price, and delivery values and the calculated
+SAW score. The score breakdown table below confirms each
+of the three weighted components (reliability 40% + price
+35% + delivery 25%).
+
+![Suppliers page — SAW scores per supplier with score breakdown by component (reliability/price/delivery)](<../image evidence/SAW scoring table.png>)
+
+Inventory monitoring confirmed live — the Stock Levels
+dashboard page showing 8 low-stock parts highlighted in
+red and the Stock vs Threshold bar chart comparing current
+stock against reorder threshold for all 20 parts. This is
+the visual output of the Monitor node working correctly.
+
+![Stock Levels page — 8 low-stock parts highlighted, Stock vs Threshold bar chart for all 20 parts](<../image evidence/threshold.png>)
 
 What this means:
 The six-node sequential design gives each node a single
@@ -244,19 +263,56 @@ was removed, not added, as the design matured.
 7. What this unlocks
 
 Evidence artifacts:
-Architecture diagram showing the six-node sequential graph,
-the shared state dictionary fields, and the gate positions
-at Evaluate (G2), Decide (G1, G3), and Verify (G4, G5).
+
+Skeleton_Design.md — the complete original design document
+capturing the BetsyState schema with field-by-field
+justifications, the full 6-node graph topology with routing
+functions, the SAW formula with normalisation logic, and the
+WHAT/WHY/NEXT log format with worked examples. This document
+was produced during the Workshop phase before full
+implementation began.
+
+betsy/state.py — the BetsyState TypedDict in code. Every
+field in the schema maps to a business concern documented
+in the design. The Annotated[list, add] pattern for
+reasoning_log is the key design choice: it is the mechanism
+that allows all six nodes to contribute to a shared audit
+trail without overwriting each other.
+
+betsy/graph.py — the 6 routing functions (_after_monitor,
+_after_evaluate, _after_decide, _after_human_approval,
+_after_order, _after_verify) that encode every branching
+decision in the system. Reading these functions answers the
+question "when does Betsy ask a human?" completely and
+explicitly.
+
+betsy/nodes.py — the implementation of all 6 nodes. Each
+node function maps to the responsibility defined in the
+design: one node, one business process phase, one set of
+state fields read and written.
 
 Skeleton proof terminal output — a full run from Monitor to
-the G1 pause, showing real inventory data, real SAW scores,
-the LLM selection, and the WHAT/WHY/NEXT entries from each
-node. Three consistent runs.
+the G1 pause using run_dl3.py, showing real inventory data
+from the CSV, real SAW scores calculated by Python, the
+LLM selection confirmed by llama3.2:3b, and the WHAT/WHY/NEXT
+entries from each node. Three consistent runs confirming the
+design holds.
 
-SAW scoring worked example — for a specific part, showing
-the three candidate suppliers, their individual scores on
-each criterion, and the final SAW score that determines the
-selection.
+SAW scoring worked example — for PART-001 (Bearing Assembly),
+three candidate suppliers scored on reliability, price, and
+delivery, with the final SAW score and winning supplier shown.
+
+Prior design document — Design_Document_DL3_v2 (Updated).docx
+in the Documents folder contains the earlier design work
+produced before the full implementation, including the initial
+node responsibilities, state field planning, and gate position
+mapping. This pre-dates the current implementation and shows
+the design thinking that preceded the build.
+
+Architecture_Diagram.md — Mermaid flowcharts showing the
+6-node topology, gate positions, HITL/HOTL classification,
+and the BetsyState field flow between nodes. Produced as a
+visual reference alongside the text-based design document.
 
 Next LO stage: Moving to Realising
 
