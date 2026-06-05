@@ -238,6 +238,17 @@ call, the JSON response, and the selected supplier in the
 terminal output.
 Produced by: python start_betsy.py --run
 
+Production system operational — the CLI startup output
+showing the four run modes and the architecture summary
+including the full Monitor→Evaluate→Decide→Order→Verify
+pipeline. The Decide step is where llama3.2:3b runs on
+every cycle. This is Showroom evidence: the selected model
+is integrated into a working production system with a
+scheduler, persistent state, and both HITL and HOTL
+mechanisms — not just a comparison test script.
+
+![Production CLI — pipeline includes Decide step where llama3.2:3b runs; scheduler, SqliteSaver, HITL all operational](<../image evidence/start_betsy_architecture.png>)
+
 Code — model integration:
 test_model_choice.py — the comparison script. Sends the
 same supplier selection task to both models three times
