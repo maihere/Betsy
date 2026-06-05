@@ -1,0 +1,20 @@
+# Core — always required
+langgraph>=1.0.0
+langchain-core>=0.3.0
+langchain-ollama>=0.2.0
+langchain-community>=0.3.0
+
+# Persistent checkpointer (production SqliteSaver)
+langgraph-checkpoint-sqlite>=2.0.0
+
+# Scheduler — autonomous monitoring cycle
+apscheduler>=3.10.0
+
+# Desktop notifications (Windows corner popup)
+plyer>=2.1.0
+
+# Framework comparison agents (optional — needed for agents/run_all.py)
+pyautogen>=0.10.0
+autogen-agentchat>=0.7.5
+autogen-ext[openai]>=0.7.5
+crewai>=1.14.0
