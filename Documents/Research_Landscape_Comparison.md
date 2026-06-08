@@ -54,5 +54,3 @@ Betsy operates at a smaller scale (one manufacturing company vs enterprise deplo
 
 ---
 
-*Research Landscape Comparison — Betsy Autonomous Procurement Agent — LO1 Analysing*
-*GenAI Semester 2026*

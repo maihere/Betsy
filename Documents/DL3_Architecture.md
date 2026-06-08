@@ -192,6 +192,15 @@ the visual output of the Monitor node working correctly.
 
 ![Stock Levels page — 8 low-stock parts highlighted, Stock vs Threshold bar chart for all 20 parts](<../image evidence/threshold.png>)
 
+Production entry point — the CLI startup output showing
+the full Monitor→Evaluate→Decide→Order→Verify pipeline
+confirmed in the production system, the four run modes,
+build_persistent_graph() with SqliteSaver checkpointer,
+and HITL/HOTL behaviour. Confirms the designed architecture
+was implemented correctly end-to-end.
+
+![Production CLI — 6-node pipeline, SqliteSaver, HITL interrupt(), all run modes visible](<../image evidence/start_betsy_architecture.png>)
+
 What this means:
 The six-node sequential design gives each node a single
 responsibility, which makes the system predictable,

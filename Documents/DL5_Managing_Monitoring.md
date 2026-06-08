@@ -197,14 +197,11 @@ a full cycle.
 
 ![Orders & Invoices page — PO table with delivery status, pending invoices section, Verify Now button](<../image evidence/Orders & Invoices.png>)
 
-Git commit history — git log --oneline showing the full
-commit sequence from initial implementation through to
-the managing-phase additions (dynamic reliability scoring,
-price history, approval rate KPI). Confirms the build
-happened in stages over time.
-NOTE: Save your git log screenshot as git_log.png in the
-image evidence/ folder, then this link becomes live:
-![Git log --oneline showing staged build from implementation through managing-phase commits](<../image evidence/git_log.png>)
+Git commit history — the git log confirms the build happened
+in stages: initial implementation commits followed by the
+managing-phase commit "DL1-DL6 documentation: evidence links,
+code refs, skeleton design, G3 redesign" which marks the point
+where monitoring feedback was acted on and the code was changed.
 
 What this means:
 The monitoring infrastructure that was built as part of
@@ -375,6 +372,24 @@ betsy/nodes.py — the updated track_delivery_node (reliability
 penalty on delay) and the updated G3 check in decide_node
 (rolling average with null guard). Before/after visible in
 the git commit history.
+
+Dynamic reliability scoring in action — terminal output
+showing AccuParts Corp starting at 85.0, dropping to 82.0
+after a delayed delivery (track_delivery_node, −3.0 rule),
+then recovering to 84.0 after a clean invoice match
+(verify_node, +2.0 rule). Net effect: −1.0 from one bad
+delivery. Score reflects actual performance, not just the
+seeded CSV value.
+
+![Dynamic reliability scoring — AccuParts 85.0 to 82.0 (delay -3) to 84.0 (match +2), net -1.0](<../image evidence/reliable score update .png>)
+
+Invoice-only routing code change — the actual
+_after_monitor function from betsy/graph.py showing the
+new invoice-only path, with before/after explanation: a
+manager can now verify a suspicious invoice immediately
+without waiting for the next 4-hour cycle.
+
+![Invoice routing change — _after_monitor code, before/after explanation, Verify Now button context](<../image evidence/have verify invoice.png>)
 
 Git commit history — the sequence of commits shows the
 build happening in stages, with managing-phase changes

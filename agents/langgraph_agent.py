@@ -3,22 +3,19 @@ LangGraph Simple Agent — Supplier Evaluation Demo
 ==================================================
 Demonstrates all three DL1 criteria natively:
 
-  C2 — Human Approval Gate : interrupt() pauses the graph when spend > threshold.
+  C1 — Human Approval Gate : interrupt() pauses the graph when spend > threshold.
                              The workflow resumes from the exact same point after
                              human input — this is impossible to replicate in
                              AutoGen or CrewAI without rebuilding the framework.
 
-  C3 — Readable Audit Log  : every node appends to reasoning_log in state.
+  C2 — Readable Audit Log  : every node appends to reasoning_log in state.
                              The log is automatic — no extra code needed.
 
-  C4 — Persistent Memory   : past_decisions live in the state dict.
+  C3 — Persistent Memory   : past_decisions live in the state dict.
                              With MemorySaver (SQLite in production), state
                              survives between runs without any external database.
 
-Run standalone:
-    python -m agents.langgraph_agent
 """
-
 from operator import add
 from typing import Annotated
 from typing_extensions import TypedDict
@@ -37,12 +34,12 @@ DIVIDER = "-" * 56
 class EvalState(TypedDict):
     order:             dict
     suppliers:         list
-    past_decisions:    list          # C4: arrives via state, persists across runs
+    past_decisions:    list          
     scores:            list
     selected_supplier: dict
     total_value:       float
     order_confirmed:   bool
-    reasoning_log:     Annotated[list, add]   # C3: auto-accumulated
+    reasoning_log:     Annotated[list, add]   
 
 
 # ── Scoring formula (from Design Document) ─────────────────────────────────────
@@ -74,7 +71,7 @@ def _score_suppliers(suppliers: list, past_decisions: list) -> list:
         r_score = float(s["reliability_score"])
         penalty = ""
 
-        # C4 in action: past delivery record changes the score this run
+        # C3 in action: past delivery record changes the score this run
         if s["id"] in past_index and "late" in past_index[s["id"]].get("notes", "").lower():
             r_score = max(0.0, r_score - 20.0)
             penalty = " [−20 reliability: late delivery on record]"

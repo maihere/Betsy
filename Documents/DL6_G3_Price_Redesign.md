@@ -256,6 +256,15 @@ in decide_node, showing the before (single last_price
 comparison) and after (rolling average with null guard).
 This is the most direct evidence of what changed.
 
+Managing phase evidence output — terminal output showing
+the G3 rolling average check in action: ViennaMach
+€75→€95 (+26.7%) fires the gate correctly because 3
+recorded prices exist as a reliable baseline. A new
+supplier (SUP-NEW-DEMO) with no price history is skipped
+entirely — confirming the null-guard fix works.
+
+![G3 fix — ViennaMach 26.7% spike fires gate; new supplier with no history skipped, not false-alarmed](<../image evidence/update price for new supplier.png>)
+
 Next LO stage: Managing continues
 
 What I can now do that I could not before:

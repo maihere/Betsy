@@ -3,16 +3,16 @@ CrewAI Simple Agent — Supplier Evaluation Demo
 ===============================================
 Same task as langgraph_agent.py. Demonstrates what CrewAI CANNOT do natively:
 
-  C2 — Human Approval Gate : No interrupt mechanism. The Crew runs every task
+  C1 — Human Approval Gate : No interrupt mechanism. The Crew runs every task
                              to completion automatically. There is no way to
                              pause a task mid-run and wait for human input
                              before continuing.
 
-  C3 — Readable Audit Log  : CrewAI returns the final task output only.
+  C2 — Readable Audit Log  : CrewAI returns the final task output only.
                              There is no built-in per-step log showing what
                              the agent reasoned at each decision point.
 
-  C4 — Persistent Memory   : No built-in persistence across separate script runs.
+  C3 — Persistent Memory   : No built-in persistence across separate script runs.
                              Past decisions must be injected into the task
                              description manually each time.
 
@@ -72,14 +72,7 @@ def run_crewai_agent() -> dict:
         verbose=False,
     )
 
-    # C4 LIMITATION:
-    # Past performance is injected into the task description.
-    # CrewAI has no built-in state object that persists between script restarts.
-    # Every run starts with a blank slate unless the developer manages external storage.
-    #
-    # C2 LIMITATION:
-    # The task runs to completion. There is no mechanism to pause at "spend > €300"
-    # and wait for a human to approve before the task continues.
+
     task = Task(
         description=f"""
 Score the following suppliers and recommend the best one.
@@ -90,7 +83,7 @@ APPROVAL THRESHOLD: €{ORDER_REQUEST['approval_threshold']}
 SUPPLIERS:
 {json.dumps(SUPPLIERS, indent=2)}
 
-PAST PERFORMANCE (manually provided — C4 limitation: CrewAI does not persist this natively):
+PAST PERFORMANCE (manually provided — C3 limitation: CrewAI does not persist this natively):
 {json.dumps(PAST_DECISIONS, indent=2)}
 
 Instructions:
@@ -112,9 +105,9 @@ Instructions:
 
     print(f"\n  {'CrewAI Agent':^{len(DIVIDER) - 2}}")
     print(f"  {DIVIDER}")
-    print("    NOTE: C2 — No HITL gate. Crew will run to completion without pausing.")
-    print("    NOTE: C3 — Only final task output returned. No per-step reasoning log.")
-    print("    NOTE: C4 — Past decisions injected manually. Not remembered natively.\n")
+    print("    NOTE: C1 — No HITL gate. Crew will run to completion without pausing.")
+    print("    NOTE: C2 — Only final task output returned. No per-step reasoning log.")
+    print("    NOTE: C3 — Past decisions injected manually. Not remembered natively.\n")
 
     import logging, io, sys as _sys
     # Suppress CrewAI's verbose internal output — we handle failures ourselves.

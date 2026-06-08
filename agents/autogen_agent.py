@@ -64,7 +64,7 @@ async def _run_agent() -> str:
         ),
     )
 
-    # C4 LIMITATION:
+    # C3 LIMITATION:
     # Past decisions must be injected into the prompt every run.
     # AutoGen has no shared state object that survives between script restarts.
     prompt = (
@@ -83,7 +83,6 @@ async def _run_agent() -> str:
         f"€{ORDER_REQUEST['approval_threshold']} — but AutoGen cannot pause for approval."
     )
 
-    # C2 LIMITATION: no interrupt mechanism — agent runs to completion
     result = await agent.on_messages(
         [TextMessage(content=prompt, source="user")],
         CancellationToken(),
