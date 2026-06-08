@@ -1,4 +1,98 @@
 # Betsy — Architecture Diagram
+
+## C4 Model — System, Container, and Component Views
+
+### Level 1 — System Context
+
+```mermaid
+C4Context
+    title System Context diagram for Betsy
+
+    Person(user, "Procurement Manager", "Reviews gate alerts, approves or rejects orders, monitors stock and spend")
+
+    System(betsy, "Betsy", "Autonomous procurement agent — monitors inventory, selects suppliers, places orders, verifies invoices")
+
+    System_Ext(ollama, "Ollama (llama3.2:3b)", "Local LLM — selects supplier and explains reasoning in plain language")
+    SystemDb_Ext(datafiles, "Data Files", "inventory.csv, suppliers.csv, purchase_orders.csv, invoices.csv — read each monitoring cycle")
+
+    Rel(user, betsy, "Starts cycles, approves/rejects gate decisions (G1–G5)", "Streamlit dashboard / CLI")
+    Rel(betsy, user, "Sends HITL/HOTL alerts when a gate fires", "Terminal + desktop notification + log file")
+    Rel(betsy, ollama, "Sends supplier shortlist, requests selection + reasoning", "HTTP — Ollama API")
+    Rel(betsy, datafiles, "Reads stock levels, supplier terms, PO history, pending invoices", "File I/O")
+```
+
+### Level 2 — Containers
+
+```mermaid
+C4Container
+    title Container diagram for Betsy
+
+    Person(user, "Procurement Manager")
+
+    System_Boundary(betsy, "Betsy") {
+        Container(dashboard, "Streamlit Dashboard", "Python, Streamlit", "app.py — 6-page UI: run a cycle, watch nodes live, approve/reject gates, view orders & audit log")
+        Container(cli, "CLI", "Python", "start_betsy.py — --run / --schedule / --status / --demo g1|g3|g4")
+        Container(scheduler, "Scheduler", "APScheduler", "betsy/scheduler.py — fires a full monitoring cycle every 4 hours")
+        Container(agentcore, "Agent Core", "Python, LangGraph", "betsy/ — 6-node ReAct graph: Monitor → Evaluate → Decide → Order → Track → Verify, with gates G1–G6 and interrupt()")
+        ContainerDb(db, "betsy.db", "SQLite", "suppliers, purchase_orders, invoices, audit_log")
+        ContainerDb(checkpointdb, "betsy_state.db", "SQLite (LangGraph checkpointer)", "graph state — lets a paused run resume after a human decision")
+    }
+
+    System_Ext(ollama, "Ollama (llama3.2:3b)", "Local LLM runtime")
+    SystemDb_Ext(datafiles, "CSV Data Files", "inventory, suppliers, purchase orders, invoices")
+
+    Rel(user, dashboard, "Uses", "HTTPS, localhost:8501")
+    Rel(user, cli, "Runs commands", "Terminal / PowerShell")
+
+    Rel(dashboard, agentcore, "Starts a cycle, streams each node's output, sends approve/reject")
+    Rel(cli, agentcore, "Starts a cycle, prints reasoning, prompts for gate decisions")
+    Rel(scheduler, agentcore, "Triggers a full cycle on a timer")
+
+    Rel(agentcore, ollama, "Supplier-selection prompt → JSON choice + reasoning", "HTTP API")
+    Rel(agentcore, datafiles, "Reads inventory & supplier data each cycle")
+    Rel(agentcore, db, "Reads suppliers, writes purchase orders, invoices, audit log entries")
+    Rel(agentcore, checkpointdb, "Saves/restores graph state via SqliteSaver around interrupt()")
+
+    Rel(dashboard, db, "Reads orders, invoices, audit log for display")
+    Rel(dashboard, checkpointdb, "Resumes a paused graph after the user approves/rejects")
+```
+
+### Level 3 — Components (inside Agent Core)
+
+```mermaid
+C4Component
+    title Component diagram for Betsy Agent Core (betsy/)
+
+    Container_Boundary(agentcore, "Agent Core") {
+        Component(graph, "Graph Builder", "graph.py", "Wires the 6 nodes into a LangGraph StateGraph, defines routing edges, calls interrupt() on gate fire, attaches the checkpointer")
+        Component(nodes, "Nodes", "nodes.py", "Monitor, Evaluate, Decide, Order, Track, Verify — each checks its gate condition (G1–G6) and writes a WHAT/WHY/NEXT reasoning_log entry")
+        Component(state, "State Schema", "state.py", "BetsyState TypedDict — the shared dict passed between every node")
+        Component(prompts, "Prompt Templates", "prompts.py", "Builds the supplier-selection prompt; instructs the LLM to choose + explain, never to do arithmetic")
+        Component(database, "Database Layer", "database.py", "init_db(), seed_suppliers(), save_purchase_order(), flush_reasoning_log() — all SQLite reads/writes")
+        Component(notify, "Notifications", "notifications.py", "Formats and sends HITL/HOTL alerts to the terminal, desktop popup, and betsy_notifications.log")
+        Component(sched, "Scheduler", "scheduler.py", "Wraps the graph in an APScheduler job that fires every MONITOR_INTERVAL_HOURS")
+    }
+
+    ContainerDb(db, "betsy.db", "SQLite")
+    ContainerDb(checkpointdb, "betsy_state.db", "SQLite checkpointer")
+    System_Ext(ollama, "Ollama (llama3.2:3b)")
+
+    Rel(graph, nodes, "Registers as graph nodes, wires conditional routing edges")
+    Rel(graph, state, "Uses BetsyState as the graph's state schema")
+    Rel(graph, checkpointdb, "Persists/restores state via SqliteSaver")
+    Rel(sched, graph, "Invokes a full run on each scheduled tick")
+
+    Rel(nodes, state, "Reads and updates state fields each step")
+    Rel(nodes, prompts, "Decide node builds a prompt for supplier selection")
+    Rel(nodes, database, "Order/Track/Verify nodes write POs, invoices, audit entries")
+    Rel(nodes, notify, "Sends an alert the moment a gate (G1–G6) fires")
+
+    Rel(prompts, ollama, "Sends the prompt, receives a JSON supplier choice + reasoning text", "HTTP API")
+    Rel(database, db, "CRUD against suppliers, purchase_orders, invoices, audit_log tables")
+```
+
+---
+
 ## 6-Node Workflow with Gate Positions
 
 ### Full Workflow (normal cycle, no gates firing)
