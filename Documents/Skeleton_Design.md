@@ -288,5 +288,3 @@ Before building the full system, a skeleton version was run against real invento
 
 ---
 
-*Skeleton Design Document — Betsy Autonomous Procurement Agent — GenAI Semester 2026*
-*Referenced by: DL3_Architecture.md (section 5 and 7)*

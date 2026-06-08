@@ -189,6 +189,3 @@ at a gate) do not write permanent records. The audit log and price history are
 append-only by design — the PO table needed the same consideration.
 
 ---
-
-*Bug Log — Betsy Autonomous Procurement Agent — GenAI Semester 2026*
-*LO4 Realising evidence — visible building process including failures and fixes*

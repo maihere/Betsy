@@ -211,7 +211,3 @@ Before using Betsy in a real procurement environment:
 - [ ] Agree data retention policy for the audit log
 
 ---
-
-*Ethics and Responsibility — Betsy Autonomous Procurement Agent*
-*LO2 Advising + LO6 Professional Standard evidence*
-*GenAI Semester 2026*

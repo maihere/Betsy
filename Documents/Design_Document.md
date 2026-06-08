@@ -355,4 +355,3 @@ This is a working prototype. The following are known limitations that would need
 
 ---
 
-*Design Document — Betsy Autonomous Procurement Agent — GenAI Semester 2026*

@@ -807,5 +807,3 @@ STALE_DATA_HOURS=4
 
 ---
 
-*Document generated: 2026-06-04*  
-*Project: Betsy Autonomous Procurement Agent — GenAI Semester*
