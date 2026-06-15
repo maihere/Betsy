@@ -97,10 +97,12 @@ record. Together these provide the visibility needed to
 confirm system health, measure the success criteria, and
 diagnose problems.
 
-One gap identified during this review: the 95%+ autonomous
-approval rate is not yet calculated as a dashboard KPI.
-This needs to be added. The data to calculate it exists
-in the database — it is a reporting gap, not a data gap.
+One gap was identified during this review: the 95%+
+autonomous approval rate was not yet calculated as a
+dashboard KPI. This gap was closed — the approval rate
+is now the fifth KPI tile on dashboard page 1, calculated
+live from the audit_log by get_approval_rate() in
+betsy/database.py.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -183,9 +185,11 @@ accumulating correctly across runs.
 
 Dashboard screenshot — the main KPI page showing 8
 low-stock parts, 16 orders awaiting delivery, G1 as the
-last gate fired, and 232 decisions logged. The "What Betsy
-Did Last Cycle" pipeline strip shows each of the 6 nodes
-with their status. Inventory Health table visible below.
+last gate fired, 232 decisions logged, and the autonomous
+approval rate as the fifth KPI tile (green when ≥ 95%,
+orange when below target). The "What Betsy Did Last Cycle"
+pipeline strip shows each of the 6 nodes with their
+status. Inventory Health table visible below.
 
 ![Dashboard KPI overview — 8 low stock, 16 orders awaiting, G1 last gate, 232 decisions logged, cycle pipeline strip](<../image evidence/Dashboard.png>)
 
@@ -229,11 +233,14 @@ four main KPIs takes under 10 seconds. The question "is
 Betsy working?" can be answered immediately from the first
 page without navigating to the audit log or database.
 
-Criterion 2: 🟡 — Stockout prevention and invoice error
+Criterion 2: ✅ — Stockout prevention and invoice error
 catching are measurable from the database. The autonomous
-approval rate is calculable from the data but is not yet
-shown as a dashboard KPI. This is a known gap that needs
-one additional metric added to the dashboard.
+approval rate is now shown as the fifth KPI tile on the
+dashboard page 1, calculated live from the audit_log as
+(runs with no gate / total runs) × 100. The
+get_approval_rate() function in betsy/database.py runs
+the query; app.py displays the result with a green
+indicator when ≥ 95% and orange when below target.
 
 Criterion 3: ✅ — The WHAT/WHY/NEXT audit log contains
 enough information to diagnose any decision. Testing this
@@ -245,11 +252,16 @@ the system.
 
 Assumptions I am making:
 The audit log is only as good as what the nodes write into
-it. If a node fails silently — if it encounters an error
-and exits without writing its WHAT/WHY/NEXT entry — the log
-will have a gap that is hard to spot. The current
-implementation does not have explicit error-state logging
-for silent failures. This is a monitoring blind spot.
+it. This blind spot was identified here and then addressed:
+all six nodes now wrap their main body in a try/except
+block. On any unhandled exception, the node writes an
+error-state WHAT/WHY/NEXT entry to the reasoning_log before
+halting — "WHAT: [node] encountered an error and could not
+complete. WHY: Exception — [details]. NEXT: Cycle halted."
+This means the audit log always has an entry for every node
+that ran, and a gap in the log now means the node was never
+reached — not that it failed silently. The fix is in
+betsy/nodes.py, applied to all six node functions.
 
 The scheduler runs as a background process in the same
 terminal session. If the terminal window is closed, the
@@ -356,6 +368,30 @@ is what the managing phase produced:
    added to the Purchase Orders dashboard page.
    Evidence: betsy/graph.py (_after_monitor function update)
    and app.py (Verify Now section in Orders & Invoices page).
+
+4. LangSmith trace monitoring
+   Manual dashboard reading is sufficient for a demonstration
+   context, but it is not observable without opening the
+   dashboard. The fix: LangSmith integration added in
+   Sprint 5. Every LangGraph node execution is now captured
+   as a structured trace — inputs, outputs, latency, and
+   errors — visible in the LangSmith web dashboard at
+   smith.langchain.com under project betsy-procurement.
+   The LLM supplier-selection call inside Decide is traced
+   as a named span ("supplier-selection-llm"), separating
+   the AI reasoning step from the node wrapper so reviewers
+   can inspect exactly what prompt was sent and what
+   response was returned.
+   Evidence: LangSmith project betsy-procurement — cycle
+   trace showing Monitor → Evaluate → Decide (with
+   supplier-selection-llm span) → Order → Track → Verify,
+   with per-node latency and the full LLM prompt/response
+   visible.
+   Files changed: betsy/nodes.py (@traceable decorator
+   on _invoke_llm, try/except on all 6 nodes), app.py
+   (load_dotenv() at top), start_betsy.py (load_dotenv()
+   at top), requirements.txt (langsmith>=0.1.0,
+   python-dotenv>=1.0.0).
 
 Evidence artifacts for the managing phase:
 

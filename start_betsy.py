@@ -24,6 +24,9 @@ import time
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from betsy.database import init_db, seed_suppliers, get_open_purchase_orders
 from betsy.graph import build_persistent_graph
 from betsy.scheduler import BetsyScheduler, run_one_cycle

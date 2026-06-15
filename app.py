@@ -8,6 +8,9 @@ Usage:
     streamlit run app.py
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import csv
 import os
 import sqlite3
@@ -127,12 +130,21 @@ if page == "📊 Dashboard":    # ── PAGE 1 ──
     audit_count = db_query("SELECT COUNT(*) AS n FROM audit_log")
     n_audit     = int(audit_count["n"].iloc[0]) if not audit_count.empty else 0
 
-    c1, c2, c3, c4 = st.columns(4)
+    from betsy.database import get_approval_rate
+    appr = get_approval_rate()
+    rate_pct   = appr["rate_pct"]
+    rate_label = f"{rate_pct}%"
+    rate_delta = "≥ 95% target ✓" if rate_pct >= 95.0 else f"Target: 95% — {appr['autonomous_runs']}/{appr['total_runs']} autonomous"
+
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Parts running low", low_stock, delta="Data stale — G6 risk" if stale else None,
               delta_color="inverse")
     c2.metric("Orders awaiting delivery", n_open)
     c3.metric("Last approval gate fired", last_g)
     c4.metric("Decisions logged", n_audit)
+    c5.metric("Autonomous approval rate", rate_label,
+              delta=rate_delta,
+              delta_color="normal" if rate_pct >= 95.0 else "inverse")
 
     # ── Pipeline strip — last cycle node states ────────────────────────────────
     st.markdown("#### What Betsy Did Last Cycle")

@@ -189,3 +189,93 @@ at a gate) do not write permanent records. The audit log and price history are
 append-only by design — the PO table needed the same consideration.
 
 ---
+
+## Bug 6 — LLM failure caused silent skip of all gates in decide_node
+
+**What happened:**
+When Ollama was not running (or unreachable), the entire `decide_node` was wrapped
+in a single `try/except`. The LLM call raised a `ConnectError`, which was caught
+by the outer exception handler. The node returned `{"decision": "skip"}` immediately,
+before any gate checks (G1 or G3) could run. The graph routed straight to END.
+
+From the outside this looked like: Start Check → run completes instantly → no gates
+fire → no order placed → no log. The user had no way to know the agent had failed
+rather than found nothing to do.
+
+**Symptom:**
+Clicking "Start Check" in the dashboard completed without any gate panel appearing,
+regardless of which demo scenario was selected (G1, G3, G4). G5 still worked because
+it routes directly from monitor to verify, bypassing decide_node entirely.
+
+**Root cause:**
+The outer `try/except` in `decide_node` treated an LLM connection failure as a
+reason to abandon the entire node — including the gate logic that does not depend
+on the LLM at all. Prices, quantities, and gate thresholds all come from the database
+and inventory CSV; the LLM is only needed for supplier selection text and reasoning.
+
+**Fix:**
+The LLM call was moved into its own isolated `try/except` block. If Ollama is
+unavailable or returns garbage, `decide_node` falls back to `candidates[0]` (the
+top-scored supplier from `evaluate_node`) with a fallback reasoning string. The
+rest of the node — G1 and G3 checks, order value calculation, gate routing —
+runs normally regardless of LLM availability.
+
+**Fix applied in:** `betsy/nodes.py` (decide_node — LLM call isolated from gate logic)
+
+**What it taught:**
+A node that wraps LLM calls in a broad exception handler can silently swallow failures
+that should be visible. The LLM is responsible for one thing (supplier selection text);
+all financial gate logic must be protected from LLM failure. Separating the two
+responsibilities at the exception-handling level enforces this boundary in code.
+
+---
+
+## Bug 7 — G3 baseline contaminated by same-cycle price_history write
+
+**What happened:**
+The G3 price spike check uses a rolling average of recorded prices as its baseline.
+`record_price_history()` was called immediately before `get_price_average()` in
+`decide_node`. On the first run with an empty `price_history` table, this was fine:
+the average returned `None`, and the fallback used `last_price` as the baseline.
+
+But on any subsequent run, `record_price_history()` had already inserted the
+current price into the table. `get_price_average()` then returned an average that
+included the current price itself. The baseline equalled the current price, so
+the spike percentage was always 0% — G3 never fired again.
+
+**Symptom:**
+The G3 demo (ViennaMach, €75 → €95 = +26.7%) fired correctly on the very first
+run after a database reset. On every subsequent run in the same session, G3 did
+not fire, and the order proceeded autonomously even though the price was genuinely
+26.7% above the known baseline.
+
+**Root cause:**
+`record_price_history()` records the current price so the history accumulates
+over time. But calling it before reading the average meant the current price was
+always part of its own baseline — making the comparison circular. The order of
+operations was: write current price → read average (includes current price) → compare
+current price to average that already contains it → spike = 0%.
+
+**Fix:**
+Two changes applied together:
+1. `record_price_history()` moved to after the G3 block, so the average read
+   by `get_price_average()` contains only prices from previous cycles.
+2. G3 baseline priority changed: `last_price` from the supplier record is now
+   used as the primary baseline (it is always set from the initial CSV and
+   reflects the last known price). The `price_history` rolling average is used
+   only when `last_price` is not available. This makes the G3 demo reliable
+   regardless of how many cycles have run — ViennaMach always has
+   `last_price = 75.0`, so the 26.7% spike is always detectable.
+
+**Fix applied in:** `betsy/nodes.py` (decide_node — G3 block reordered, baseline
+priority changed to prefer `last_price` over rolling average)
+
+**What it taught:**
+Write-then-read within the same function creates a self-referential baseline that
+corrupts the comparison. Any rolling average used for anomaly detection must be
+read before the current value is appended to the history. Also: the `last_price`
+field in the supplier record is more reliable than a freshly-written history table
+as a spike baseline because it represents an externally-curated reference point,
+not data produced by the same run that is being evaluated.
+
+---

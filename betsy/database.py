@@ -301,6 +301,29 @@ def get_price_average(supplier_id: str, part_id: str, n: int = 3) -> float | Non
 
 # ── Audit Log ──────────────────────────────────────────────────────────────────
 
+def get_approval_rate() -> dict:
+    """
+    Calculate the autonomous approval rate: % of runs that completed
+    without any gate interrupt firing. Returns total_runs, autonomous_runs,
+    and rate_pct (0.0–100.0). Returns zeros if no runs recorded yet.
+    """
+    with get_conn() as conn:
+        total = conn.execute(
+            "SELECT COUNT(DISTINCT run_id) FROM audit_log"
+        ).fetchone()[0]
+        gate_runs = conn.execute(
+            "SELECT COUNT(DISTINCT run_id) FROM audit_log WHERE gate IS NOT NULL"
+        ).fetchone()[0]
+    if total == 0:
+        return {"total_runs": 0, "autonomous_runs": 0, "rate_pct": 0.0}
+    autonomous = total - gate_runs
+    return {
+        "total_runs": total,
+        "autonomous_runs": autonomous,
+        "rate_pct": round((autonomous / total) * 100, 1),
+    }
+
+
 def flush_reasoning_log(run_id: str, reasoning_log: list) -> None:
     """
     Save every WHAT/WHY/NEXT entry to audit_log.

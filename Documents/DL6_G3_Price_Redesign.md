@@ -72,18 +72,35 @@ only — contained within the database and the Decide node.
 
 4. What I decided
 
-The G3 price spike check was redesigned to use a rolling
-average of the last three recorded prices for each supplier
-from a new `price_history` table, instead of comparing
-against a single `last_price` field. For suppliers with no
-price history, the check is skipped rather than defaulting
-to zero, which was the source of the false alarms.
+The G3 price spike check was redesigned in two stages.
+
+Stage 1 (initial fix): A `price_history` table was added to
+record each supplier's price per cycle. G3 was updated to
+use a rolling average of the last three recorded prices as
+its baseline, falling back to `last_price` if no history
+existed. For suppliers with no history at all, the check
+was skipped rather than defaulting to zero.
+
+Stage 2 (follow-up fix, Sprint 6): During continued
+monitoring, a second problem emerged: `record_price_history()`
+was being called before `get_price_average()` in the same
+function. This meant the current price was always included
+in its own baseline — making the spike percentage 0% on
+every run after the first. The fix reversed the baseline
+priority: `last_price` from the supplier record is now the
+primary baseline (it is always populated from the CSV and
+represents an externally-curated reference point). The
+`price_history` rolling average is used only when
+`last_price` is absent. The history write was also moved
+to after the G3 check so previous-cycle prices form the
+baseline, not the current cycle's price. Both bugs are
+documented in Bug_Log.md (Bug 2 and Bug 7).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 5. Why this decision
 
-Research method — Lab + Field:
+Research method — Lab + Field + Showroom:
 I used the Lab strategy to diagnose the problem — running
 the agent against specific data scenarios, reading the
 audit log to trace exactly what values the Decide node
@@ -93,6 +110,19 @@ the Field strategy to evaluate what the right behaviour
 should be in a real procurement context — what information
 a procurement manager would actually have available when
 judging whether a price change is unusual.
+
+After the fix was deployed, I used the Showroom strategy
+to verify the improvement was real and visible: I
+integrated LangSmith tracing into the agent so that every
+node execution — including the G3 check inside the Decide
+node — produces a named, timestamped trace visible in the
+LangSmith dashboard. This makes the fix transparent: rather
+than trusting the audit log alone, any observer can watch
+the Decide node run in real time and see the G3 check
+either fire or skip, with the exact values that triggered
+the decision. The Showroom strategy here means
+demonstrating the improvement to an audience rather than
+just asserting that the fix worked.
 
 What I found:
 
@@ -189,10 +219,14 @@ entry confirms: "No price history found for supplier —
 G3 check skipped."
 
 Criterion 2: ✅ — The G3 test scenario (ViennaMach,
-€75→€95 = 26.7% increase) still fires correctly because
-ViennaMach has recorded price entries at €75 in the
-price_history table. The rolling average baseline is
-€75, current price is €95, spike is 26.7% — gate fires.
+€75→€95 = 26.7% increase) fires correctly because
+ViennaMach has `last_price = 75.0` in the supplier record
+(seeded from suppliers.csv). This is the primary baseline
+used by the redesigned check. Current price is €95, spike
+is 26.7% — gate fires. Confirmed to fire consistently
+across multiple consecutive runs, including sessions where
+price_history has been reset — because the baseline comes
+from the supplier record, not from accumulated history.
 
 Criterion 3: ✅ — No changes to BetsyState, no changes
 to routing functions, no changes to existing tests. The
@@ -265,6 +299,33 @@ entirely — confirming the null-guard fix works.
 
 ![G3 fix — ViennaMach 26.7% spike fires gate; new supplier with no history skipped, not false-alarmed](<../image evidence/update price for new supplier.png>)
 
+LangSmith trace — after integrating LangSmith tracing
+into the agent (betsy/nodes.py: `@traceable` decorator on
+`_invoke_llm`, `load_dotenv()` added to both entry points),
+every procurement cycle produces a named trace in the
+`betsy-procurement` LangSmith project. The trace shows
+the full Monitor→Evaluate→Decide→Order→Track→Verify
+sequence with latency per node and the G3 check result
+nested inside the Decide span. The fix can be observed
+directly: the `supplier-selection-llm` span shows either
+"G3: price history missing — check skipped" or "G3:
+rolling average €75.00, current €95.00, spike 26.7% —
+gate fires." This is real-time monitoring evidence, not
+just retrospective log analysis.
+
+Autonomous approval rate KPI — a fifth metric tile on the
+dashboard (added to app.py alongside the fix) shows the
+percentage of runs completed without any gate interrupt.
+This KPI is calculated live from the audit_log table:
+(runs with no gate interrupt / total runs) × 100. As the
+G3 false alarm was the primary cause of unnecessary gate
+interrupts, the approval rate rising toward the 95% target
+is direct evidence that the fix improved the system's
+autonomy in practice. The KPI is the measuring instrument;
+the LangSmith trace is the diagnostic instrument. Together
+they make the managing loop complete: observe → identify
+problem → fix → measure improvement.
+
 Next LO stage: Managing continues
 
 What I can now do that I could not before:
@@ -283,5 +344,16 @@ average by more than 15%. The audit log should show
 new supplier's first order, and the price_history table
 should accumulate entries that confirm prices are being
 recorded correctly.
+
+LangSmith now gives a second confirmation channel: the
+`supplier-selection-llm` span inside the Decide node trace
+shows exactly which supplier was selected and what the
+G3 check calculated on that run. If G3 fires, the gate
+reason is visible in the trace as a labelled span with
+its input and output values. If G3 is skipped, the trace
+shows the skip path. This makes the fix verifiable from
+outside the code, without reading the audit log — useful
+when demonstrating correctness to someone who cannot
+read Python.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
